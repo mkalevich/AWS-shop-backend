@@ -1,3 +1,4 @@
+import { Product } from "../mock-db/types";
 import { BuildResponse } from "./types";
 
 export const buildResponseBody = ({
@@ -9,3 +10,26 @@ export const buildResponseBody = ({
   headers,
   body: JSON.stringify(body),
 });
+
+export const isValidProduct = (productData: Product) => {
+  const {
+    id = null,
+    description = null,
+    title = null,
+    price = null,
+  } = { ...productData };
+  if (
+    !id ||
+    typeof id !== "string" ||
+    !description ||
+    typeof description !== "string" ||
+    !title ||
+    typeof title !== "string" ||
+    !price ||
+    typeof price !== "number"
+  ) {
+    return true;
+  }
+
+  return false;
+};
