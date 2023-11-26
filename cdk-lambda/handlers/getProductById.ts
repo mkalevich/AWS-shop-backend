@@ -2,7 +2,9 @@ import * as AWS from "aws-sdk";
 import { QueryCommand, DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { config } from "dotenv";
 import { SERVER_STATUS_CODE, TABLE_NAME } from "../constants";
-import { buildResponseBody } from "./helpers";
+import { buildResponseBody, logIncomingRequest } from "./helpers";
+import { APIGatewayProxyEvent, Context } from "aws-lambda";
+import { BuildResponse } from "./types";
 
 config();
 
@@ -35,11 +37,16 @@ const getProductById = async (productId: string) => {
   }
 };
 
-export const handler = async (event: any) => {
+export const handler = async (
+  event: APIGatewayProxyEvent,
+  context: Context
+): Promise<BuildResponse> => {
+  logIncomingRequest(event, context);
+  
   try {
-    const { productId } = event.pathParameters;
+    const { productId } = event.pathParameters ?? { productId: "" };
 
-    const product = await getProductById(productId);
+    const product = await getProductById(productId!);
 
     return buildResponseBody({
       statusCode: SERVER_STATUS_CODE.OK,

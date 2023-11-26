@@ -5,3 +5,5 @@ export interface BuildResponse {
   body: Product[] | unknown;
   headers?: Record<string, string>;
 }
+
+export type NewProduct = Omit<Product, "id">;

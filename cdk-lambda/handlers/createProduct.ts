@@ -1,8 +1,10 @@
 import { DynamoDB } from "aws-sdk";
+import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from "aws-lambda";
 import * as dotenv from "dotenv";
+import * as uuid from "uuid";
 import { SERVER_STATUS_CODE, TABLE_NAME } from "../constants";
-import { buildResponseBody, isValidProduct } from "./helpers";
-import { Product } from "../mock-db/types";
+import { buildResponseBody, isValidProduct, logIncomingRequest } from "./helpers";
+import { BuildResponse, NewProduct } from "./types";
 
 dotenv.config();
 
@@ -10,11 +12,13 @@ const dynamoDB = new DynamoDB.DocumentClient({
   region: process.env.BASE_AWS_REGION,
 });
 
-const createProduct = async (data: Product) => {
+const createProduct = async (data: NewProduct) => {
   const tableName = TABLE_NAME.PRODUCTS_DB;
-  const { description, id, title, price } = data;
+
+  const { description, title, price } = data;
+
   const product = {
-    id,
+    id: uuid.v4(),
     title,
     description,
     price,
@@ -33,8 +37,13 @@ const createProduct = async (data: Product) => {
   }
 };
 
-export const handler = async (event: any) => {
-  const product = JSON.parse(event.body);
+export const handler = async (
+  event: APIGatewayProxyEvent,
+  context: Context
+): Promise<BuildResponse> => {
+  logIncomingRequest(event, context);
+  
+  const product = !!event.body && JSON.parse(event.body);
 
   if (isValidProduct(product)) {
     return buildResponseBody({

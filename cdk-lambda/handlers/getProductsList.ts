@@ -2,7 +2,9 @@ import * as AWS from "aws-sdk";
 import { ItemList } from "aws-sdk/clients/dynamodb";
 import { config } from "dotenv";
 import { SERVER_STATUS_CODE, TABLE_NAME } from "../constants";
-import { buildResponseBody } from "./helpers";
+import { buildResponseBody, logIncomingRequest } from "./helpers";
+import { APIGatewayProxyEvent, Context } from "aws-lambda";
+import { BuildResponse } from "./types";
 
 config();
 
@@ -27,7 +29,12 @@ const scanTable = async (tableName: string): Promise<ItemList | undefined> => {
   });
 };
 
-export const handler = async (event: any) => {
+export const handler = async (
+  event: APIGatewayProxyEvent,
+  context: Context
+): Promise<BuildResponse> => {
+  logIncomingRequest(event, context);
+
   try {
     const productsTable = await scanTable(TABLE_NAME.PRODUCTS_DB);
     const stocksTable = await scanTable(TABLE_NAME.STOCKS_DB);
