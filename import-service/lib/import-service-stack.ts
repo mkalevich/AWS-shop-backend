@@ -5,6 +5,8 @@ import * as apiGateway from "@aws-cdk/aws-apigatewayv2-alpha";
 
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import * as lambda from "aws-cdk-lib/aws-lambda";
+import { S3 } from "aws-sdk";
+import { bucketName, s3Event } from "../handlers/constants";
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
 
 export class ImportServiceStack extends cdk.Stack {
@@ -18,12 +20,12 @@ export class ImportServiceStack extends cdk.Stack {
       entry: "handlers/importProductsFile.ts",
     });
 
-    // const importFileParser = new NodejsFunction(this, "ImportFileParser", {
-    //   runtime: lambda.Runtime.NODEJS_18_X,
-    //   environment: { BASE_AWS_REGION: process.env.BASE_AWS_REGION! },
-    //   functionName: "importFileParser",
-    //   entry: "handlers/importFileParser.ts",
-    // });
+    const importFileParser = new NodejsFunction(this, "ImportFileParser", {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      environment: { BASE_AWS_REGION: process.env.BASE_AWS_REGION! },
+      functionName: "importFileParser",
+      entry: "handlers/importFileParser.ts",
+    });
 
     const api = new apiGateway.HttpApi(this, "ImportServiceApi", {
       corsPreflight: {
@@ -42,13 +44,40 @@ export class ImportServiceStack extends cdk.Stack {
       methods: [apiGateway.HttpMethod.GET],
     });
 
-    // api.addRoutes({
-    //   integration: new HttpLambdaIntegration(
-    //     "ImportFileParserIntegration",
-    //     importFileParser
-    //   ),
-    //   path: "/import",
-    //   methods: [apiGateway.HttpMethod.GET],
-    // });
+    const s3 = new S3();
+
+    const bucketNotificationParams = {
+      Bucket: bucketName,
+      NotificationConfiguration: {
+        LambdaFunctionConfigurations: [
+          {
+            LambdaFunctionArn:
+              "arn:aws:lambda:us-east-1:946060570212:function:importFileParser",
+            Events: [s3Event],
+            Filter: {
+              Key: {
+                FilterRules: [
+                  {
+                    Name: "prefix",
+                    Value: "uploaded/",
+                  },
+                ],
+              },
+            },
+          },
+        ],
+      },
+    };
+
+    s3.putBucketNotificationConfiguration(
+      bucketNotificationParams,
+      (err, data) => {
+        if (err) {
+          console.log(err.message);
+        } else {
+          console.log(`Event notification added successfully: ${data}`);
+        }
+      }
+    );
   }
 }
