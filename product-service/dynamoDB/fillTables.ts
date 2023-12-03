@@ -9,7 +9,7 @@ dotenv.config();
 
 config.update({ region: process.env.BASE_AWS_REGION });
 
-const docClient = new DynamoDB.DocumentClient();
+const dynamoDB = new DynamoDB.DocumentClient();
 
 const addItemToTable = (item: Product | Stock, tableName: string) => {
   const params = {
@@ -17,11 +17,11 @@ const addItemToTable = (item: Product | Stock, tableName: string) => {
     Item: item,
   };
 
-  docClient.put(params, (err) => {
+  dynamoDB.put(params, (err) => {
     if (err) {
-      console.error(`Unable to add item!`);
+      console.error("Unable to add item!");
     } else {
-      console.log(`Item has been successfully added!`);
+      console.log("Item has been successfully added!");
     }
   });
 };

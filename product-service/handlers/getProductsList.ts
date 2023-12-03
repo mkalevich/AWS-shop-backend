@@ -58,7 +58,7 @@ export const handler = async (
   } catch (error: unknown) {
     return buildResponseBody({
       statusCode: SERVER_STATUS_CODE.SERVER_ERROR,
-      body: `Unable to get data from tables :( ${error})`,
+      body: { message: `Unable to get data from tables :( ${error})` },
     });
   }
 };
