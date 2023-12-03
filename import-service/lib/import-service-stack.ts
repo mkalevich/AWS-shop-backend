@@ -5,7 +5,7 @@ import * as apiGateway from "@aws-cdk/aws-apigatewayv2-alpha";
 
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import * as lambda from "aws-cdk-lib/aws-lambda";
-import { S3 } from "aws-sdk";
+import { Lambda, S3 } from "aws-sdk";
 import { bucketName, s3Event } from "../handlers/constants";
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
 
@@ -44,40 +44,59 @@ export class ImportServiceStack extends cdk.Stack {
       methods: [apiGateway.HttpMethod.GET],
     });
 
-    const s3 = new S3();
+    const setupS3EventNotifications = async () => {
+      const s3 = new S3({ region: "us-east-1" });
 
-    const bucketNotificationParams = {
-      Bucket: bucketName,
-      NotificationConfiguration: {
-        LambdaFunctionConfigurations: [
-          {
-            LambdaFunctionArn:
-              "arn:aws:lambda:us-east-1:946060570212:function:importFileParser",
-            Events: [s3Event],
-            Filter: {
-              Key: {
-                FilterRules: [
-                  {
-                    Name: "prefix",
-                    Value: "uploaded/",
+      try {
+        const lambda = new Lambda({ region: "us-east-1" });
+        await lambda
+          .addPermission({
+            FunctionName: "importFileParser",
+            StatementId: "s3-trigger",
+            Action: "lambda:InvokeFunction",
+            Principal: "s3.amazonaws.com",
+            SourceArn: `arn:aws:s3:::${bucketName}`,
+          })
+          .promise();
+
+        const bucketNotificationParams = {
+          Bucket: bucketName,
+          NotificationConfiguration: {
+            LambdaFunctionConfigurations: [
+              {
+                LambdaFunctionArn:
+                  "arn:aws:lambda:us-east-1:946060570212:function:importFileParser",
+                Events: [s3Event],
+                Filter: {
+                  Key: {
+                    FilterRules: [
+                      {
+                        Name: "prefix",
+                        Value: "uploaded/",
+                      },
+                    ],
                   },
-                ],
+                },
               },
-            },
+            ],
           },
-        ],
-      },
+        };
+
+        await s3.putBucketNotificationConfiguration(
+          bucketNotificationParams,
+          (err, data) => {
+            if (err) {
+              console.log(err.message);
+            } else {
+              console.log(`Event notification added successfully: ${data}`);
+            }
+          }
+        );
+      } catch (e) {
+        console.log(e);
+      }
     };
 
-    s3.putBucketNotificationConfiguration(
-      bucketNotificationParams,
-      (err, data) => {
-        if (err) {
-          console.log(err.message);
-        } else {
-          console.log(`Event notification added successfully: ${data}`);
-        }
-      }
-    );
+    setupS3EventNotifications();
   }
 }
