@@ -18,6 +18,13 @@ export class ImportServiceStack extends cdk.Stack {
       entry: "handlers/importProductsFile.ts",
     });
 
+    // const importFileParser = new NodejsFunction(this, "ImportFileParser", {
+    //   runtime: lambda.Runtime.NODEJS_18_X,
+    //   environment: { BASE_AWS_REGION: process.env.BASE_AWS_REGION! },
+    //   functionName: "importFileParser",
+    //   entry: "handlers/importFileParser.ts",
+    // });
+
     const api = new apiGateway.HttpApi(this, "ImportServiceApi", {
       corsPreflight: {
         allowHeaders: ["*"],
@@ -34,5 +41,14 @@ export class ImportServiceStack extends cdk.Stack {
       path: "/import",
       methods: [apiGateway.HttpMethod.GET],
     });
+
+    // api.addRoutes({
+    //   integration: new HttpLambdaIntegration(
+    //     "ImportFileParserIntegration",
+    //     importFileParser
+    //   ),
+    //   path: "/import",
+    //   methods: [apiGateway.HttpMethod.GET],
+    // });
   }
 }
