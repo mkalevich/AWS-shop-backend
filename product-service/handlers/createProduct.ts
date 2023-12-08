@@ -1,9 +1,17 @@
 import { DynamoDB } from "aws-sdk";
-import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from "aws-lambda";
+import {
+  APIGatewayProxyEvent,
+  APIGatewayProxyResult,
+  Context,
+} from "aws-lambda";
 import * as dotenv from "dotenv";
 import * as uuid from "uuid";
 import { SERVER_STATUS_CODE, TABLE_NAME } from "../constants";
-import { buildResponseBody, isValidProduct, logIncomingRequest } from "./helpers";
+import {
+  buildResponseBody,
+  isValidProduct,
+  logIncomingRequest,
+} from "./helpers";
 import { BuildResponse, NewProduct } from "./types";
 
 dotenv.config();
@@ -42,13 +50,13 @@ export const handler = async (
   context: Context
 ): Promise<BuildResponse> => {
   logIncomingRequest(event, context);
-  
+
   const product = !!event.body && JSON.parse(event.body);
 
   if (isValidProduct(product)) {
     return buildResponseBody({
       statusCode: 400,
-      body: `Product data is invalid!`,
+      body: { massage: "Product data is invalid!" },
     });
   }
 
@@ -57,12 +65,12 @@ export const handler = async (
 
     return buildResponseBody({
       statusCode: SERVER_STATUS_CODE.OK,
-      body: `Product ${event.body} has been successfully added`,
+      body: { message: `Product has been successfully added` },
     });
   } catch (error: unknown) {
     return buildResponseBody({
       statusCode: SERVER_STATUS_CODE.SERVER_ERROR,
-      body: `Unable to create a product :( Error => ${error}`,
+      body: { message: `Unable to create a product :( Error => ${error}` },
     });
   }
 };

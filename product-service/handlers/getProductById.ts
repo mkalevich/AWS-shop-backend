@@ -9,7 +9,7 @@ import { BuildResponse } from "./types";
 config();
 
 const getProductById = async (productId: string) => {
-  const client = new DynamoDBClient({ region: process.env.BASE_AWS_REGION });
+  const dynamoDB = new DynamoDBClient({ region: process.env.BASE_AWS_REGION });
 
   const params = {
     TableName: TABLE_NAME.PRODUCTS_DB,
@@ -21,7 +21,7 @@ const getProductById = async (productId: string) => {
 
   try {
     const query = new QueryCommand(params);
-    const response = await client.send(query);
+    const response = await dynamoDB.send(query);
 
     const isProductExists = response.Items && response.Items.length > 0;
 
@@ -42,7 +42,7 @@ export const handler = async (
   context: Context
 ): Promise<BuildResponse> => {
   logIncomingRequest(event, context);
-  
+
   try {
     const { productId } = event.pathParameters ?? { productId: "" };
 
@@ -55,7 +55,7 @@ export const handler = async (
   } catch (error: unknown) {
     return buildResponseBody({
       statusCode: SERVER_STATUS_CODE.SERVER_ERROR,
-      body: `Unable to get data from table :( ${error})`,
+      body: { message: `Unable to get data from table :( ${error})` },
     });
   }
 };
