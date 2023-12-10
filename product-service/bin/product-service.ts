@@ -8,6 +8,9 @@ import { HttpLambdaIntegration } from "@aws-cdk/aws-apigatewayv2-integrations-al
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import { config } from "dotenv";
 import { LAMBDA_FUNCTION_NAMES, PRODUCTS_API, STACK_NAME } from "../constants";
+import { Queue } from "aws-cdk-lib/aws-sqs";
+import { Duration } from "aws-cdk-lib";
+import { SqsEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
 
 config();
 
@@ -18,6 +21,10 @@ export const stack = new ProductServiceStack(app, STACK_NAME, {
     account: process.env.AWS_ACCOUNT,
     region: process.env.BASE_AWS_REGION,
   },
+});
+
+const catalogItemsQueue = new Queue(stack, "catalogItemsQueue", {
+  visibilityTimeout: Duration.seconds(30),
 });
 
 const getProductsList = new NodejsFunction(
@@ -52,6 +59,21 @@ const createProduct = new NodejsFunction(
     entry: "handlers/createProduct.ts",
   }
 );
+
+const catalogBatchProcess = new NodejsFunction(stack, "CatalogBatchProcess", {
+  runtime: lambda.Runtime.NODEJS_18_X,
+  environment: { SQS_QUEUE_URL: catalogItemsQueue.queueUrl },
+  functionName: "catalogBatchProcess",
+  entry: "handlers/catalogBatchProcess.ts",
+});
+
+catalogBatchProcess.addEventSource(
+  new SqsEventSource(catalogItemsQueue, {
+    batchSize: 5,
+  })
+);
+
+catalogItemsQueue.grantSendMessages(catalogBatchProcess); // Add permissions
 
 const api = new apiGateway.HttpApi(stack, PRODUCTS_API, {
   corsPreflight: {
