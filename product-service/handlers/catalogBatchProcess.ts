@@ -1,39 +1,31 @@
 import { Lambda } from "aws-sdk";
-import { LAMBDA_FUNCTION_NAMES } from "../constants";
-import { buildResponseBody } from "./helpers";
+import { buildResponseBody, isValidProduct } from "./helpers";
+import { createProduct } from "./createProduct";
+import { SQSEvent } from "aws-lambda";
 
-const lambda = new Lambda();
+export const handler = async (event: SQSEvent) => {
+  console.log(event.Records);
+  console.log(Array.isArray(event.Records));
 
-export const handler = async (event: any) => {
-  const getParams = (payload: any) => {
-    const params = {
-      FunctionName: LAMBDA_FUNCTION_NAMES.CREATE_PRODUCT,
-      Payload: JSON.stringify(payload),
-    };
+  for (const record of event.Records) {
+    try {
+      console.log(`Message recieved from SQS: ${JSON.parse(record.body)}`);
 
-    return params;
-  };
-
-  try {
-    for (const record of event.Records) {
-      console.log(`Message recieved from SQS: ${record.body}`);
-
-      const result = await lambda.invoke(getParams(record.body)).promise();
-
-      let payload;
-
-      if (Buffer.isBuffer(result.Payload)) {
-        payload = result.Payload.toString("utf-8");
+      if (isValidProduct(JSON.parse(record.body))) {
+        return buildResponseBody({
+          statusCode: 400,
+          body: { massage: "Product data is invalid!" },
+        });
       }
 
-      const resultPayload = JSON.parse(payload ?? "");
+      await createProduct(JSON.parse(record.body));
 
       return buildResponseBody({
         statusCode: 200,
-        body: { message: resultPayload },
+        body: { message: "Created" },
       });
+    } catch (error) {
+      return buildResponseBody({ statusCode: 500, body: { message: error } });
     }
-  } catch (error) {
-    return buildResponseBody({ statusCode: 500, body: { message: error } });
   }
 };
