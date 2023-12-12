@@ -9,13 +9,17 @@ import { Queue } from "aws-cdk-lib/aws-sqs";
 import { SqsEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
 import {
   Effect,
+  ManagedPolicy,
   PolicyStatement,
   Role,
   ServicePrincipal,
 } from "aws-cdk-lib/aws-iam";
 import { Topic } from "aws-cdk-lib/aws-sns";
 import { EmailSubscription } from "aws-cdk-lib/aws-sns-subscriptions";
+import * as dotenv from "dotenv";
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
+
+dotenv.config();
 
 export class ProductServiceStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -56,6 +60,17 @@ export class ProductServiceStack extends cdk.Stack {
 
     const catalogItemsQueue = new Queue(this, "catalogItemsQueue");
 
+    const role = new Role(this, "LambdaExecutionRole", {
+      assumedBy: new ServicePrincipal("lambda.amazonaws.com"),
+    });
+
+    role.addToPolicy(
+      new PolicyStatement({
+        actions: ["sns:Publish"],
+        resources: ["*"],
+      })
+    );
+
     const catalogBatchProcess = new NodejsFunction(
       this,
       "CatalogBatchProcess",
@@ -64,6 +79,7 @@ export class ProductServiceStack extends cdk.Stack {
         environment: { SQS_QUEUE_URL: catalogItemsQueue.queueUrl },
         functionName: "catalogBatchProcess",
         entry: "handlers/catalogBatchProcess.ts",
+        role: role,
       }
     );
 
@@ -119,18 +135,9 @@ export class ProductServiceStack extends cdk.Stack {
     });
 
     const topic = new Topic(this, "createProductTopic");
-    const emailSubscription = new EmailSubscription("maxkalevich@gmail.com");
-    topic.addSubscription(emailSubscription);
-
-    const role = new Role(this, "LambdaExecutionRole", {
-      assumedBy: new ServicePrincipal("lambda.amazonaws.com"),
-    });
-
-    role.addToPolicy(
-      new PolicyStatement({
-        actions: ["sns:Publish"],
-        resources: ["*"],
-      })
+    const emailSubscription = new EmailSubscription(
+      process.env.PERSONAL_EMAIL!
     );
+    topic.addSubscription(emailSubscription);
   }
 }

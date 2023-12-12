@@ -2,6 +2,9 @@ import { isValidProduct } from "./helpers";
 import { createProduct } from "./createProduct";
 import { SQSEvent } from "aws-lambda";
 import { SNS } from "aws-sdk";
+import * as dotenv from "dotenv";
+
+dotenv.config();
 
 const sns = new SNS({ apiVersion: "2010-03-31" });
 
@@ -27,8 +30,7 @@ export const handler = async (event: SQSEvent) => {
 
     const params = {
       Message: "Products created successfully!",
-      TopicArn:
-        "arn:aws:sns:us-east-1:946060570212:ProductServiceLambdaStack-createProductTopic05C0E62B-PHFB3qcNawrn",
+      TopicArn: process.env.TOPIC_ARN,
     };
 
     sns.publish(params).promise();
