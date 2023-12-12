@@ -7,7 +7,14 @@ import { Construct } from "constructs";
 import { LAMBDA_FUNCTION_NAMES, PRODUCTS_API, STACK_NAME } from "../constants";
 import { Queue } from "aws-cdk-lib/aws-sqs";
 import { SqsEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
-import { Effect, PolicyStatement } from "aws-cdk-lib/aws-iam";
+import {
+  Effect,
+  PolicyStatement,
+  Role,
+  ServicePrincipal,
+} from "aws-cdk-lib/aws-iam";
+import { Topic } from "aws-cdk-lib/aws-sns";
+import { EmailSubscription } from "aws-cdk-lib/aws-sns-subscriptions";
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
 
 export class ProductServiceStack extends cdk.Stack {
@@ -110,5 +117,20 @@ export class ProductServiceStack extends cdk.Stack {
       path: "/products",
       methods: [apiGateway.HttpMethod.POST],
     });
+
+    const topic = new Topic(this, "createProductTopic");
+    const emailSubscription = new EmailSubscription("maxkalevich@gmail.com");
+    topic.addSubscription(emailSubscription);
+
+    const role = new Role(this, "LambdaExecutionRole", {
+      assumedBy: new ServicePrincipal("lambda.amazonaws.com"),
+    });
+
+    role.addToPolicy(
+      new PolicyStatement({
+        actions: ["sns:Publish"],
+        resources: ["*"],
+      })
+    );
   }
 }
