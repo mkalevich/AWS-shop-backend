@@ -8,6 +8,7 @@ import { config } from "dotenv";
 config();
 
 const app = new cdk.App();
+
 new ImportServiceStack(app, "ImportServiceStack", {
   env: {
     account: process.env.AWS_ACCOUNT,

@@ -1,32 +1,22 @@
 import { Context, S3Event } from "aws-lambda";
-import { BuildResponse, buildResponseBody } from "../helpers";
-import { S3, SQS, config } from "aws-sdk";
+import {
+  BuildResponse,
+  buildResponseBody,
+  sendMessagesToSQS,
+} from "../helpers";
+import { S3, config } from "aws-sdk";
 import csvParser from "csv-parser";
+import * as dotenv from "dotenv";
 import { bucketName } from "./constants";
-import { SQSClient, SendMessageBatchCommand } from "@aws-sdk/client-sqs";
-const sqs = new SQS({ apiVersion: "2012-11-05", region: "us-east-1" });
-const sqsClient = new SQSClient({ region: "us-east-1" });
-config.update({ region: "us-east-1" });
 
-const sendMessagesToSQS = async (messages: string[]) => {
-  const queueUrl =
-    "https://sqs.us-east-1.amazonaws.com/946060570212/ProductServiceLambdaStack-catalogItemsQueue79451959-TwFtGaE1EHAA";
+dotenv.config();
 
-  await sqsClient.send(
-    new SendMessageBatchCommand({
-      QueueUrl: queueUrl,
-      Entries: messages.map((message, index) => ({
-        Id: index.toString(),
-        MessageBody: JSON.stringify(message),
-      })),
-    })
-  );
-};
+config.update({ region: process.env.BASE_AWS_REGION });
 
 const s3 = new S3();
 
 const parseS3CSVFile = async (bucket: string, key: string) => {
-  const csvData: any = [];
+  const csvData: object[] = [];
 
   return new Promise((resolve, reject) => {
     const readStream = s3
@@ -39,7 +29,6 @@ const parseS3CSVFile = async (bucket: string, key: string) => {
     readStream
       .pipe(csvParser())
       .on("data", (chunk: object) => {
-        console.log(chunk);
         csvData.push(chunk);
       })
       .on("end", () => {
@@ -61,9 +50,11 @@ export const handler = async (
     const { object } = event.Records[0].s3;
     const key = decodeURIComponent(object.key.replace(/\+/g, " "));
 
-    await parseS3CSVFile(bucketName, key).then((data) =>
-      sendMessagesToSQS(data)
-    );
+    const products = await parseS3CSVFile(bucketName, key);
+
+    const queueUrl =
+      "https://sqs.us-east-1.amazonaws.com/946060570212/ProductServiceLambdaStack-catalogItemsQueue79451959-TwFtGaE1EHAA";
+    await sendMessagesToSQS(products, queueUrl);
 
     return buildResponseBody({
       statusCode: 200,
