@@ -4,7 +4,7 @@ import * as apiGateway from "@aws-cdk/aws-apigatewayv2-alpha";
 import { HttpLambdaIntegration } from "@aws-cdk/aws-apigatewayv2-integrations-alpha";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import { Construct } from "constructs";
-import { LAMBDA_FUNCTION_NAMES, PRODUCTS_API, STACK_NAME } from "../constants";
+import { LAMBDA_FUNCTION_NAMES, PERSONAL_EMAIL, PRODUCTS_API, STACK_NAME } from "../constants";
 import { Queue } from "aws-cdk-lib/aws-sqs";
 import { SqsEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
 import {
@@ -135,9 +135,7 @@ export class ProductServiceStack extends cdk.Stack {
     });
 
     const topic = new Topic(this, "createProductTopic");
-    const emailSubscription = new EmailSubscription(
-      process.env.PERSONAL_EMAIL!
-    );
+    const emailSubscription = new EmailSubscription(PERSONAL_EMAIL);
     topic.addSubscription(emailSubscription);
   }
 }

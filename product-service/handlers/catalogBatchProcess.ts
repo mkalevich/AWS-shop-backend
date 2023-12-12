@@ -3,6 +3,7 @@ import { createProduct } from "./createProduct";
 import { SQSEvent } from "aws-lambda";
 import { SNS } from "aws-sdk";
 import * as dotenv from "dotenv";
+import { TOPIC_ARN } from "../constants";
 
 dotenv.config();
 
@@ -30,7 +31,7 @@ export const handler = async (event: SQSEvent) => {
 
     const params = {
       Message: "Products created successfully!",
-      TopicArn: process.env.TOPIC_ARN,
+      TopicArn: TOPIC_ARN,
     };
 
     sns.publish(params).promise();
