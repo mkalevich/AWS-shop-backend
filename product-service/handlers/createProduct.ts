@@ -20,7 +20,7 @@ const dynamoDB = new DynamoDB.DocumentClient({
   region: process.env.BASE_AWS_REGION,
 });
 
-const createProduct = async (data: NewProduct) => {
+export const createProduct = async (data: NewProduct) => {
   const tableName = TABLE_NAME.PRODUCTS_DB;
 
   const { description, title, price } = data;

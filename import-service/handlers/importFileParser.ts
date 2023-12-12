@@ -3,11 +3,31 @@ import { BuildResponse, buildResponseBody } from "../helpers";
 import { S3, SQS, config } from "aws-sdk";
 import csvParser from "csv-parser";
 import { bucketName } from "./constants";
+import { SQSClient, SendMessageBatchCommand } from "@aws-sdk/client-sqs";
+const sqs = new SQS({ apiVersion: "2012-11-05", region: "us-east-1" });
+const sqsClient = new SQSClient({ region: "us-east-1" });
+config.update({ region: "us-east-1" });
+
+const sendMessagesToSQS = async (messages: string[]) => {
+  const queueUrl =
+    "https://sqs.us-east-1.amazonaws.com/946060570212/ProductServiceLambdaStack-catalogItemsQueue79451959-TwFtGaE1EHAA";
+
+  await sqsClient.send(
+    new SendMessageBatchCommand({
+      QueueUrl: queueUrl,
+      Entries: messages.map((message, index) => ({
+        Id: index.toString(),
+        MessageBody: JSON.stringify(message),
+      })),
+    })
+  );
+};
 
 const s3 = new S3();
 
 const parseS3CSVFile = async (bucket: string, key: string) => {
-  console.log(`Key ${key}`);
+  const csvData: any = [];
+
   return new Promise((resolve, reject) => {
     const readStream = s3
       .getObject({
@@ -18,38 +38,18 @@ const parseS3CSVFile = async (bucket: string, key: string) => {
 
     readStream
       .pipe(csvParser())
-      .on("data", (data: object) => {
-        console.log(data);
-
-        sendMessageToSQS(data);
+      .on("data", (chunk: object) => {
+        console.log(chunk);
+        csvData.push(chunk);
       })
-      .on("end", (records) => {
+      .on("end", () => {
         console.log("Parsing CSV completed");
-        resolve(records);
+        resolve(csvData);
       })
       .on("error", (error: Error) => {
         console.log(error.message);
         reject(error.message);
       });
-  });
-};
-
-const sqs = new SQS({ apiVersion: "2012-11-05" });
-config.update({ region: "us-east-1" });
-
-const sendMessageToSQS = (message: any) => {
-  const params = {
-    MessageBody: JSON.stringify(message),
-    QueueUrl:
-      "https://sqs.us-east-1.amazonaws.com/946060570212/ProductServiceLambdaStack-catalogItemsQueue79451959-7TgjTXSaxWkE",
-  };
-
-  sqs.sendMessage(params, (err, data) => {
-    if (err) {
-      console.log("Error ", err);
-    } else {
-      console.log("Success ", data.MessageId);
-    }
   });
 };
 
@@ -61,13 +61,9 @@ export const handler = async (
     const { object } = event.Records[0].s3;
     const key = decodeURIComponent(object.key.replace(/\+/g, " "));
 
-    const records = await parseS3CSVFile(bucketName, key);
-
-    records?.forEach((element) => {
-      console.log("Records =>");
-      console.log(element);
-      sendMessageToSQS(element);
-    });
+    await parseS3CSVFile(bucketName, key).then((data) =>
+      sendMessagesToSQS(data)
+    );
 
     return buildResponseBody({
       statusCode: 200,

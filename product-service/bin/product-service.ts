@@ -11,6 +11,7 @@ import { LAMBDA_FUNCTION_NAMES, PRODUCTS_API, STACK_NAME } from "../constants";
 import { Queue } from "aws-cdk-lib/aws-sqs";
 import { Duration } from "aws-cdk-lib";
 import { SqsEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
+import { Effect, PolicyStatement } from "aws-cdk-lib/aws-iam";
 
 config();
 
@@ -23,9 +24,9 @@ export const stack = new ProductServiceStack(app, STACK_NAME, {
   },
 });
 
-const catalogItemsQueue = new Queue(stack, "catalogItemsQueue", {
-  visibilityTimeout: Duration.seconds(30),
-});
+// const catalogItemsQueue = new Queue(stack, "catalogItemsQueueV2", {
+//   visibilityTimeout: Duration.seconds(3),
+// });
 
 const getProductsList = new NodejsFunction(
   stack,
@@ -60,6 +61,8 @@ const createProduct = new NodejsFunction(
   }
 );
 
+const catalogItemsQueue = new Queue(stack, "catalogItemsQueue");
+
 const catalogBatchProcess = new NodejsFunction(stack, "CatalogBatchProcess", {
   runtime: lambda.Runtime.NODEJS_18_X,
   environment: { SQS_QUEUE_URL: catalogItemsQueue.queueUrl },
@@ -72,6 +75,15 @@ catalogBatchProcess.addEventSource(
     batchSize: 5,
   })
 );
+
+catalogBatchProcess.addToRolePolicy(
+  new PolicyStatement({
+    effect: Effect.ALLOW,
+    resources: [catalogItemsQueue.queueArn],
+    actions: ["*"],
+  })
+);
+
 
 catalogItemsQueue.grantSendMessages(catalogBatchProcess); // Add permissions
 

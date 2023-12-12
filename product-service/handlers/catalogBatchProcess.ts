@@ -4,28 +4,27 @@ import { createProduct } from "./createProduct";
 import { SQSEvent } from "aws-lambda";
 
 export const handler = async (event: SQSEvent) => {
-  console.log(event.Records);
-  console.log(Array.isArray(event.Records));
+  console.log(JSON.stringify(event));
 
   for (const record of event.Records) {
     try {
-      console.log(`Message recieved from SQS: ${JSON.parse(record.body)}`);
+      const product = JSON.parse(record.body);
 
-      if (isValidProduct(JSON.parse(record.body))) {
+      console.log(`Message recieved from SQS: ${JSON.stringify(product)}`);
+
+      if (!isValidProduct(product)) {
         return buildResponseBody({
           statusCode: 400,
           body: { massage: "Product data is invalid!" },
         });
       }
 
-      await createProduct(JSON.parse(record.body));
+      await createProduct(product);
 
-      return buildResponseBody({
-        statusCode: 200,
-        body: { message: "Created" },
-      });
+      console.log("Created");
     } catch (error) {
-      return buildResponseBody({ statusCode: 500, body: { message: error } });
+      console.log(JSON.stringify("error"));
+      console.log(JSON.stringify(error));
     }
   }
 };
