@@ -1,5 +1,4 @@
-import { Lambda } from "aws-sdk";
-import { buildResponseBody, isValidProduct } from "./helpers";
+import { isValidProduct } from "./helpers";
 import { createProduct } from "./createProduct";
 import { SQSEvent } from "aws-lambda";
 
@@ -13,17 +12,13 @@ export const handler = async (event: SQSEvent) => {
       console.log(`Message recieved from SQS: ${JSON.stringify(product)}`);
 
       if (!isValidProduct(product)) {
-        return buildResponseBody({
-          statusCode: 400,
-          body: { massage: "Product data is invalid!" },
-        });
+        console.log("The Product is not valid");
       }
 
       await createProduct(product);
 
-      console.log("Created");
+      console.log("The Product has been created");
     } catch (error) {
-      console.log(JSON.stringify("error"));
       console.log(JSON.stringify(error));
     }
   }
