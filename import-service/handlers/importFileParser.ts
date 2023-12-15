@@ -1,13 +1,23 @@
-import { APIGatewayProxyEvent, Context, S3Event } from "aws-lambda";
-import { BuildResponse, buildResponseBody } from "../helpers";
-import { S3 } from "aws-sdk";
+import { Context, S3Event } from "aws-lambda";
+import {
+  BuildResponse,
+  buildResponseBody,
+  sendMessagesToSQS,
+} from "../helpers";
+import { S3, config } from "aws-sdk";
 import csvParser from "csv-parser";
+import * as dotenv from "dotenv";
 import { bucketName } from "./constants";
+
+dotenv.config();
+
+config.update({ region: process.env.BASE_AWS_REGION });
 
 const s3 = new S3();
 
 const parseS3CSVFile = async (bucket: string, key: string) => {
-  console.log(`Key ${key}`);
+  const csvData: object[] = [];
+
   return new Promise((resolve, reject) => {
     const readStream = s3
       .getObject({
@@ -18,12 +28,12 @@ const parseS3CSVFile = async (bucket: string, key: string) => {
 
     readStream
       .pipe(csvParser())
-      .on("data", (data: object) => {
-        console.log(data);
+      .on("data", (chunk: object) => {
+        csvData.push(chunk);
       })
       .on("end", () => {
         console.log("Parsing CSV completed");
-        resolve("Parsing CSV completed");
+        resolve(csvData);
       })
       .on("error", (error: Error) => {
         console.log(error.message);
@@ -40,7 +50,11 @@ export const handler = async (
     const { object } = event.Records[0].s3;
     const key = decodeURIComponent(object.key.replace(/\+/g, " "));
 
-    await parseS3CSVFile(bucketName, key);
+    const products = await parseS3CSVFile(bucketName, key);
+
+    const queueUrl =
+      "https://sqs.us-east-1.amazonaws.com/946060570212/ProductServiceLambdaStack-catalogItemsQueue79451959-TwFtGaE1EHAA";
+    await sendMessagesToSQS(products, queueUrl);
 
     return buildResponseBody({
       statusCode: 200,

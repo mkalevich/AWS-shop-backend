@@ -1,3 +1,5 @@
+import { SQSClient, SendMessageBatchCommand } from "@aws-sdk/client-sqs";
+
 export interface BuildResponse {
   statusCode: number;
   body: unknown;
@@ -13,3 +15,17 @@ export const buildResponseBody = ({
   headers,
   body: JSON.stringify(body),
 });
+
+export const sendMessagesToSQS = async (messages: string[], queueUrl: string) => {
+  const sqsClient = new SQSClient({ region: "us-east-1" });
+
+  await sqsClient.send(
+    new SendMessageBatchCommand({
+      QueueUrl: queueUrl,
+      Entries: messages.map((message, index) => ({
+        Id: index.toString(),
+        MessageBody: JSON.stringify(message),
+      })),
+    })
+  );
+};

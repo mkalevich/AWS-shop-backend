@@ -16,3 +16,7 @@ export const enum LAMBDA_FUNCTION_NAMES {
 
 export const STACK_NAME = "ProductServiceLambdaStack";
 export const PRODUCTS_API = "ProductsApi";
+
+export const PERSONAL_EMAIL = "maxkalevich@gmail.com";
+export const TOPIC_ARN =
+  "arn:aws:sns:us-east-1:946060570212:ProductServiceLambdaStack-createProductTopic05C0E62B-PHFB3qcNawrn";
