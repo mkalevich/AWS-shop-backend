@@ -1,25 +1,16 @@
 import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
-import { HttpLambdaIntegration } from "@aws-cdk/aws-apigatewayv2-integrations-alpha";
-import * as apiGateway from "@aws-cdk/aws-apigatewayv2-alpha";
+import * as apiGateway from "aws-cdk-lib/aws-apigateway";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as dotenv from "dotenv";
-// import * as sqs from 'aws-cdk-lib/aws-sqs';
+import { AuthorizationType } from "aws-cdk-lib/aws-apigateway";
 
 dotenv.config();
 
 export class ImportServiceStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
-
-    const api = new apiGateway.HttpApi(this, "ImportServiceApi", {
-      corsPreflight: {
-        allowHeaders: ["*"],
-        allowOrigins: ["*"],
-        allowMethods: [apiGateway.CorsHttpMethod.ANY],
-      },
-    });
 
     const importProductsFile = new NodejsFunction(this, "ImportProductsFile", {
       runtime: lambda.Runtime.NODEJS_18_X,
@@ -28,14 +19,46 @@ export class ImportServiceStack extends cdk.Stack {
       entry: "handlers/importProductsFile.ts",
     });
 
-    api.addRoutes({
-      integration: new HttpLambdaIntegration(
-        "ImportProductsFileIntegration",
-        importProductsFile
-      ),
-      path: "/import",
-      methods: [apiGateway.HttpMethod.GET],
+    const api = new apiGateway.RestApi(this, "ImportServiceApi", {
+      restApiName: "Service API",
+      defaultCorsPreflightOptions: {
+        allowHeaders: ["*"],
+        allowOrigins: ["*"],
+        allowCredentials: true,
+        allowMethods: apiGateway.Cors.ALL_METHODS,
+      },
     });
+
+    const importProductsFileIntegration = new apiGateway.LambdaIntegration(
+      importProductsFile
+    );
+
+    const importedBasicAuthorizerArn = cdk.Fn.importValue("basicAuthorizerArn");
+    const authorizerFunction = lambda.Function.fromFunctionArn(
+      this,
+      "importedBasicAuthorizerArn",
+      importedBasicAuthorizerArn
+    );
+
+    const authorizer = new apiGateway.TokenAuthorizer(this, "Authorizer", {
+      handler: authorizerFunction,
+    });
+
+    api.root
+      .addResource("import")
+      .addMethod("GET", importProductsFileIntegration, {
+        authorizer,
+        authorizationType: AuthorizationType.CUSTOM,
+        methodResponses: [
+          {
+            statusCode: "200",
+            responseParameters: {
+              "method.response.header.Content-Type": true,
+              "method.response.header.Access-Control-Allow-Origin": true,
+            },
+          },
+        ],
+      });
 
     new NodejsFunction(this, "ImportFileParser", {
       runtime: lambda.Runtime.NODEJS_18_X,

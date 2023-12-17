@@ -2,8 +2,9 @@ import * as cdk from "aws-cdk-lib";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import { Construct } from "constructs";
-import { IAM } from "aws-sdk";
+import { IAM, Lambda, config } from "aws-sdk";
 import * as dotenv from "dotenv";
+import { PolicyStatement, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
 
 dotenv.config();
@@ -12,51 +13,49 @@ export class AuthorizationServiceStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
+    const role = new Role(this, "LambdaExecutionRole", {
+      assumedBy: new ServicePrincipal("lambda.amazonaws.com"),
+    });
+
+    role.addToPolicy(
+      new PolicyStatement({
+        actions: ["lambda:UpdateFunctionConfiguration"],
+        resources: ["*"],
+      })
+    );
+
     const basicAuthorizer = new NodejsFunction(this, "basicAuthorizer", {
       runtime: lambda.Runtime.NODEJS_18_X,
       environment: {
-        BASE_AWS_REGION: process.env.BASE_AWS_REGION!
+        BASE_AWS_REGION: process.env.BASE_AWS_REGION!,
+        GITHUB_LOGIN: process.env.GITHUB_LOGIN!,
+        GITHUB_PASSWORD: process.env.GITHUB_PASSWORD!,
       },
       functionName: "basicAuthorizer",
       entry: "handlers/basicAuthorizer.ts",
+      role: role,
     });
 
-    const iam = new IAM();
+    new cdk.CfnOutput(this, "basicAuthorizerExport", {
+      value: basicAuthorizer.functionArn,
+      exportName: "basicAuthorizerArn",
+    });
 
-    const policy = {
-      Version: "2012-10-17",
-      Statement: [
-        {
-          Effect: "Allow",
-          Action: ["lambda.UpdateFunctionConfiguration"],
-          Resource:
-            "arn:aws:lambda:us-east-1:946060570212:function:basicAuthorizer",
+    const authLambda = new Lambda();
+
+    const params = {
+      FunctionName: "basicAuthorizer",
+      Environment: {
+        Variables: {
+          GITHUB_LOGIN: process.env.GITHUB_LOGIN!,
+          GITHUB_PASSWORD: process.env.GITHUB_PASSWORD!,
         },
-      ],
+      },
     };
 
-    const policyParams = {
-      PolicyDocument: JSON.stringify(policy),
-      PolicyName: "LambdaUpdateConfigurationPolicy",
-    };
-
-    iam.createPolicy(policyParams, (err, data) => {
+    authLambda.updateFunctionConfiguration(params, (err, data) => {
       if (err) {
-        console.log(err, err.stack);
-      } else {
-        console.log(data);
-      }
-    });
-
-    const attachRolePolicyParams = {
-      PolicyArn:
-        "arn:aws:iam:946060570212:policy/LambdaUpdateConfigurationPolicy",
-      RoleName: "BasicAuthorizerRole",
-    };
-
-    iam.attachRolePolicy(attachRolePolicyParams, (err, data) => {
-      if (err) {
-        console.log(err, err.stack);
+        console.log(err.stack);
       } else {
         console.log(data);
       }

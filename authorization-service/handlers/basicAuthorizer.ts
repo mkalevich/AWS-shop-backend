@@ -1,3 +1,39 @@
+interface AuthResponse {
+  principalId: string;
+  policyDocument?: {
+    Version: string;
+    Statement: {
+      Action: string;
+      Effect: string;
+      Resource: string;
+    }[];
+  };
+}
+
+const generatePolicy = (
+  principalId: string,
+  effect: string,
+  resource: string
+): AuthResponse => {
+  if (effect && resource) {
+    return {
+      principalId,
+      policyDocument: {
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Action: "execute-api:Invoke",
+            Effect: effect,
+            Resource: resource,
+          },
+        ],
+      },
+    };
+  } else {
+    return { principalId };
+  }
+};
+
 const getAuthToken = (authHeader: string) => {
   const matchBase64 = authHeader.match(/^Basic (.+)$/);
 
@@ -8,9 +44,9 @@ const getAuthToken = (authHeader: string) => {
   }
 };
 
-export const handler = async (event: any) => {
+export const handler = async (event: any, context: any, callback: any) => {
   const authHeader = event.headers && event.headers.Authorization;
-
+  console.log(authHeader);
   if (!authHeader) {
     return { statusCode: 401, body: "No Authorization header" };
   }
@@ -27,8 +63,12 @@ export const handler = async (event: any) => {
     login === process.env.GITHUB_LOGIN &&
     password === process.env.GITHUB_PASSWORD
   ) {
-    return { statusCode: 200, body: "Authorization completed" };
+    return generatePolicy(
+      "user",
+      "Allow",
+      `arn:aws:execute-api:${process.env.BASE_AWS_REGION}:946060570212:*/*/*`
+    );
   } else {
-    return { statusCode: 403, body: "Authorization token is not valid" };
+    throw new Error("Unauthorized");
   }
 };
