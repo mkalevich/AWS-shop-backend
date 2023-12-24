@@ -40,25 +40,5 @@ export class AuthorizationServiceStack extends cdk.Stack {
       value: basicAuthorizer.functionArn,
       exportName: "basicAuthorizerArn",
     });
-
-    const authLambda = new Lambda();
-
-    const params = {
-      FunctionName: "basicAuthorizer",
-      Environment: {
-        Variables: {
-          GITHUB_LOGIN: process.env.GITHUB_LOGIN!,
-          GITHUB_PASSWORD: process.env.GITHUB_PASSWORD!,
-        },
-      },
-    };
-
-    authLambda.updateFunctionConfiguration(params, (err, data) => {
-      if (err) {
-        console.log(err.stack);
-      } else {
-        console.log(data);
-      }
-    });
   }
 }

@@ -16,16 +16,23 @@ export const buildResponseBody = ({
   body: JSON.stringify(body),
 });
 
-export const sendMessagesToSQS = async (messages: string[], queueUrl: string) => {
+export const sendMessagesToSQS = async (
+  messages: string[],
+  queueUrl: string
+) => {
   const sqsClient = new SQSClient({ region: "us-east-1" });
 
-  await sqsClient.send(
-    new SendMessageBatchCommand({
-      QueueUrl: queueUrl,
-      Entries: messages.map((message, index) => ({
-        Id: index.toString(),
-        MessageBody: JSON.stringify(message),
-      })),
-    })
-  );
+  try {
+    await sqsClient.send(
+      new SendMessageBatchCommand({
+        QueueUrl: queueUrl,
+        Entries: messages.map((message, index) => ({
+          Id: index.toString(),
+          MessageBody: JSON.stringify(message),
+        })),
+      })
+    );
+  } catch (e) {
+    console.log(JSON.stringify(e));
+  }
 };
