@@ -19,7 +19,6 @@ export class AppController {
     } else if (request.url.endsWith('import')) {
       redirectedUrl = process.env.IMPORT;
     }
-
     try {
       const response = await this.proxyService.proxyRequest(
         redirectedUrl,
