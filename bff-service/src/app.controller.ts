@@ -10,10 +10,14 @@ export class AppController {
 
   @All('*')
   async proxy(@Req() request): Promise<any> {
-    let redirectedUrl = '';
+    let redirectedUrl = request.url;
 
     if (request.url.endsWith('products')) {
       redirectedUrl = process.env.PRODUCT;
+    }
+
+    if (request.url.endsWith('cart')) {
+      redirectedUrl = process.env.CART;
     }
 
     try {
